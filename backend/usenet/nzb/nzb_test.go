@@ -4,6 +4,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -36,47 +38,25 @@ func TestDecodeNzb(t *testing.T) {
 
 func TestEncodeNzb(t *testing.T) {
 	poster := "NewsUP <NewsUP@somewhere.cbr>"
-	date := 1487587920
 	groups := []string{
 		"alt.binaries.test",
 		"alt.binaries.ath",
 	}
 
-	nzb := &Nzb{
-		Files: []File{
-			{
-				Poster:  poster,
-				Date:    date,
-				Subject: "[02/45] - \"ubuntu-mate-16.04.2-desktop-amd64.iso.part01.rar\" (1/66)",
-				Groups:  groups,
-				Segments: []Segment{
-					{
-						Bytes:  787135,
-						Number: 1,
-						Id:     "VNdHifYKSAtPRNYRoIhyQLghUETQLDaC@UFK",
-					},
-					{
-						Bytes:  793807,
-						Number: 2,
-						Id:     "zmvIGqoSHmSwAVMlkJnPppKRtwezvAIL@UFK",
-					},
-				},
-			},
-			{
-				Poster:  poster,
-				Date:    date,
-				Subject: "[01/45] - &quot;ubuntu-mate-16.04.2-desktop-amd64.iso.par2&quot; (1/1)",
-				Groups:  groups,
-				Segments: []Segment{
-					{
-						Bytes:  51058,
-						Number: 1,
-						Id:     "BcvtngyhrBKDHVsgCmTcgeCnbTaxzkSL@UFK",
-					},
-				},
-			},
-		},
-	}
+	nzb := &Nzb{}
+	file := nzb.AddFile(
+		poster,
+		"[02/45] - \"ubuntu-mate-16.04.2-desktop-amd64.iso.part01.rar\" (1/66)",
+		groups,
+	)
+	file.AddSegment(787135, "VNdHifYKSAtPRNYRoIhyQLghUETQLDaC@UFK")
+	file.AddSegment(793807, "zmvIGqoSHmSwAVMlkJnPppKRtwezvAIL@UFK")
+	file = nzb.AddFile(
+		poster,
+		"[01/45] - &quot;ubuntu-mate-16.04.2-desktop-amd64.iso.par2&quot; (1/1)",
+		groups,
+	)
+	file.AddSegment(51058, "BcvtngyhrBKDHVsgCmTcgeCnbTaxzkSL@UFK")
 
 	content, err := EncodeNzb(nzb)
 	assert.NoError(t, err)
@@ -87,6 +67,8 @@ func TestEncodeNzb(t *testing.T) {
 	dataExpected, err := ioutil.ReadAll(fileExpected)
 	assert.NoError(t, err)
 	contentStrExpected := string(dataExpected)
+	contentStrExpected = strings.ReplaceAll(contentStrExpected, "1487587920", strconv.Itoa(nzb.Files[0].Date))
+	contentStrExpected = strings.ReplaceAll(contentStrExpected, "1487587921", strconv.Itoa(nzb.Files[1].Date))
 
 	assert.Equal(t, contentStr, contentStrExpected)
 }
