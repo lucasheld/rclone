@@ -1,13 +1,14 @@
 package nzb
 
 import (
+	"bytes"
 	"encoding/xml"
 	"golang.org/x/net/html/charset"
-	"os"
 )
 
 type Nzb struct {
-	Files []File `xml:"file"`
+	XMLName xml.Name `xml:"http://www.newzbin.com/DTD/2003/nzb nzb"`
+	Files   []File   `xml:"file"`
 }
 
 type File struct {
@@ -24,14 +25,27 @@ type Segment struct {
 	Id     string `xml:",chardata"`
 }
 
-func ParseNzb(filePath string) (nzb *Nzb, err error) {
-	file, err := os.Open(filePath)
+func EncodeNzb(nzb *Nzb) (content []byte, err error) {
+	buffer := new(bytes.Buffer)
+
+	buffer.WriteString(xml.Header)
+	buffer.WriteString("<!DOCTYPE nzb PUBLIC \"-//newzBin//DTD NZB 1.1//EN\" \"http://www.newzbin.com/DTD/nzb/nzb-1.1.dtd\">" + "\n")
+
+	encoder := xml.NewEncoder(buffer)
+	encoder.Indent("", "\t")
+	err = encoder.Encode(&nzb)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
 
-	decoder := xml.NewDecoder(file)
+	return buffer.Bytes(), nil
+}
+
+func DecodeNzb(content []byte) (nzb *Nzb, err error) {
+	buffer := new(bytes.Buffer)
+	buffer.Write(content)
+
+	decoder := xml.NewDecoder(buffer)
 	decoder.CharsetReader = charset.NewReaderLabel
 	err = decoder.Decode(&nzb)
 	if err != nil {

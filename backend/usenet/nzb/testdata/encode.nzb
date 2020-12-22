@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nzb PUBLIC "-//newzBin//DTD NZB 1.1//EN" "http://www.newzbin.com/DTD/nzb/nzb-1.1.dtd">
+<nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">
+	<file poster="NewsUP &lt;NewsUP@somewhere.cbr&gt;" date="1487587920" subject="[02/45] - &#34;ubuntu-mate-16.04.2-desktop-amd64.iso.part01.rar&#34; (1/66)">
+		<groups>
+			<group>alt.binaries.test</group>
+			<group>alt.binaries.ath</group>
+		</groups>
+		<segments>
+			<segment bytes="787135" number="1">VNdHifYKSAtPRNYRoIhyQLghUETQLDaC@UFK</segment>
+			<segment bytes="793807" number="2">zmvIGqoSHmSwAVMlkJnPppKRtwezvAIL@UFK</segment>
+		</segments>
+	</file>
+	<file poster="NewsUP &lt;NewsUP@somewhere.cbr&gt;" date="1487587920" subject="[01/45] - &amp;quot;ubuntu-mate-16.04.2-desktop-amd64.iso.par2&amp;quot; (1/1)">
+		<groups>
+			<group>alt.binaries.test</group>
+			<group>alt.binaries.ath</group>
+		</groups>
+		<segments>
+			<segment bytes="51058" number="1">BcvtngyhrBKDHVsgCmTcgeCnbTaxzkSL@UFK</segment>
+		</segments>
+	</file>
+</nzb>
