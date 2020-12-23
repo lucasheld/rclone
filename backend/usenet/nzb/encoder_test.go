@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -38,9 +37,7 @@ func TestEncodeNzb(t *testing.T) {
 	assert.NoError(t, err)
 	contentStr := string(buffer.Bytes())
 
-	fileExpected, err := os.Open("testdata/encode.nzb")
-	assert.NoError(t, err)
-	dataExpected, err := ioutil.ReadAll(fileExpected)
+	dataExpected, err := ioutil.ReadFile("testdata/encode.nzb")
 	assert.NoError(t, err)
 	contentStrExpected := string(dataExpected)
 	contentStrExpected = strings.ReplaceAll(contentStrExpected, "1487587920", strconv.Itoa(nzb.Files[0].Date))
