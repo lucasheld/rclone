@@ -6,55 +6,58 @@ import (
 	"hash/crc32"
 )
 
-const (
-	null  byte = 0x00
-	tab   byte = 0x09
-	lf    byte = 0x0A
-	cr    byte = 0x0D
-	space byte = 0x20
-	dot   byte = 0x2E
-	equal byte = 0x3D
-)
-
-// http://www.yenc.org/yenc-draft.1.3.txt
-// http://www.yenc.org/ydecode-c.txt
-
 type Encoder struct {
 	Writer *bytes.Buffer
 	Line   int
 	Size   int
 	Name   string
-	Crc32  string
 }
 
-func NewEncoder(writer *bytes.Buffer) *Encoder {
+func NewEncoder(writer *bytes.Buffer, inputFileSize int) *Encoder {
 	return &Encoder{
 		Writer: writer,
 		Line:   128,
+		Size:   inputFileSize,
 	}
 }
 
-func (e *Encoder) writeHeader() error {
-	_, err := fmt.Fprintf(e.Writer, "=ybegin line=%d size=%d name=%s\r\n", e.Line, e.Size, e.Name)
+func (e *Encoder) writeHeader(part *Part) error {
+	content := "=ybegin"
+	if part.IsMultipart() {
+		content = fmt.Sprintf("%s part=%d", content, part.Part)
+	}
+	content = fmt.Sprintf("%s line=%d size=%d name=%s\r\n", content, e.Line, e.Size, e.Name)
+	if part.IsMultipart() {
+		content = fmt.Sprintf("%s=ypart begin=%d end=%d\r\n", content, part.Begin, part.End)
+	}
+
+	_, err := e.Writer.WriteString(content)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *Encoder) writeTrailer() error {
-	_, err := fmt.Fprintf(e.Writer, "=yend size=%d crc32=%s\r\n", e.Size, e.Crc32)
+func (e *Encoder) writeTrailer(part *Part) error {
+	content := ""
+	if part.IsMultipart() {
+		content = fmt.Sprintf("=yend size=%d part=%d pcrc32=%s\r\n", part.Size(), part.Part, part.Crc)
+	} else {
+		content = fmt.Sprintf("=yend size=%d crc32=%s\r\n", e.Size, part.Crc)
+	}
+
+	_, err := e.Writer.WriteString(content)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *Encoder) Encode(data []byte) error {
-	e.Size = len(data)
-	e.Crc32 = fmt.Sprintf("%x", crc32.ChecksumIEEE(data))
+func (e *Encoder) Encode(part *Part, data []byte) error {
+	//e.Size = len(data)
+	part.Crc = fmt.Sprintf("%x", crc32.ChecksumIEEE(data))
 
-	err := e.writeHeader()
+	err := e.writeHeader(part)
 	if err != nil {
 		return err
 	}
@@ -65,7 +68,7 @@ func (e *Encoder) Encode(data []byte) error {
 		char = char + 42
 
 		firstColumn := currentLineLength == 0
-		lastColumn := currentLineLength == e.Line-1
+		lastColumn := currentLineLength == e.Line - 1
 
 		// TODO: remove tab and dot from from default escape characters and adjust test files
 		escapeChar := false
@@ -94,13 +97,11 @@ func (e *Encoder) Encode(data []byte) error {
 	if currentLineLength > 0 {
 		e.Writer.Write([]byte("\r\n"))
 	}
-	return nil
-}
 
-func (e *Encoder) Close() error {
-	err := e.writeTrailer()
+	err = e.writeTrailer(part)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
