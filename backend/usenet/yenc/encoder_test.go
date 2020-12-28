@@ -1,7 +1,9 @@
 package yenc
 
 import (
+	"bufio"
 	"bytes"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"testing"
@@ -39,47 +41,46 @@ func TestMultipart(t *testing.T) {
 	assert.NoError(t, err)
 	size := len(input)
 
+	inputBuffer := new(bytes.Buffer)
+	inputBuffer.Write(input)
+	inputReader := bufio.NewReader(inputBuffer)
+
 	outputBuffer := new(bytes.Buffer)
 	encoder := NewEncoder(outputBuffer, size)
 	encoder.Name = "joystick.jpg"
 
+	chunksize := 11250
+	chunkBuffer := make([]byte, chunksize)
 
-	part1 := &Part{
-		Part:  1,
-		Begin: 1,
-		End:   11250,
+	number := 1
+	begin := 1
+	for {
+		n, err := inputReader.Read(chunkBuffer)
+		if err != nil {
+			break
+		}
+		chunk := chunkBuffer[0:n]
+
+		part := &Part{
+			Part:  number,
+			Begin: begin,
+			End:   begin+n-1,
+		}
+
+		err = encoder.Encode(part, chunk)
+		assert.NoError(t, err)
+
+		assert.Equal(t, encoder.Size, size)
+
+		output, err := ioutil.ReadAll(outputBuffer)
+		assert.NoError(t, err)
+		filename := fmt.Sprintf("testdata/multipart/0000002%d.ntx", number-1)
+		outputExpected, err := ioutil.ReadFile(filename)
+		outputExpected = bytes.ReplaceAll(outputExpected, []byte{' ', '\r', '\n'}, []byte{'\r', '\n'})
+		assert.NoError(t, err)
+		assert.Equal(t, outputExpected, output)
+
+		number++
+		begin = begin + n
 	}
-	err = encoder.Encode(part1, input[part1.Begin-1:part1.End])
-	assert.NoError(t, err)
-
-	assert.Equal(t, encoder.Size, size)
-	assert.Equal(t, part1.Size(), 11250)
-	assert.Equal(t, part1.Crc, "bfae5c0b")
-
-	output, err := ioutil.ReadAll(outputBuffer)
-	assert.NoError(t, err)
-	outputExpected1, err := ioutil.ReadFile("testdata/multipart/00000020.ntx")
-	outputExpected1 = bytes.ReplaceAll(outputExpected1, []byte{' ', '\r', '\n'}, []byte{'\r', '\n'})
-	assert.NoError(t, err)
-	assert.Equal(t, outputExpected1, output)
-
-
-	part2 := &Part{
-		Part:  2,
-		Begin: part1.End+1,
-		End:   encoder.Size,
-	}
-	err = encoder.Encode(part2, input[part2.Begin-1:part2.End])
-	assert.NoError(t, err)
-
-	assert.Equal(t, encoder.Size, size)
-	assert.Equal(t, part2.Size(), 8088)
-	assert.Equal(t, part2.Crc, "aca76043")
-
-	output, err = ioutil.ReadAll(outputBuffer)
-	assert.NoError(t, err)
-	outputExpected2, err := ioutil.ReadFile("testdata/multipart/00000021.ntx")
-	outputExpected2 = bytes.ReplaceAll(outputExpected2, []byte{' ', '\r', '\n'}, []byte{'\r', '\n'})
-	assert.NoError(t, err)
-	assert.Equal(t, outputExpected2, output)
 }

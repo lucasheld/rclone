@@ -54,7 +54,6 @@ func (e *Encoder) writeTrailer(part *Part) error {
 }
 
 func (e *Encoder) Encode(part *Part, data []byte) error {
-	//e.Size = len(data)
 	part.Crc = fmt.Sprintf("%x", crc32.ChecksumIEEE(data))
 
 	err := e.writeHeader(part)
