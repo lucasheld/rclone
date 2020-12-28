@@ -6,16 +6,14 @@ import (
 	"hash/crc32"
 )
 
-// characters in the binary input data that should be escaped
-// TODO: Careful writers of encoders will encode TAB (09h) SPACES (20h) if they would appear in the first or last column of a line. Implementors who write directly to a TCP stream will care about the doubling of dots in the first column - or also encode a DOT in the first column.
 const (
-	null   byte = 0x00
-	tab    byte = 0x09
-	lf     byte = 0x0A
-	cr     byte = 0x0D
-	space  byte = 0x20
-	dot    byte = 0x2E
-	escape byte = 0x3D
+	null  byte = 0x00
+	tab   byte = 0x09
+	lf    byte = 0x0A
+	cr    byte = 0x0D
+	space byte = 0x20
+	dot   byte = 0x2E
+	equal byte = 0x3D
 )
 
 // http://www.yenc.org/yenc-draft.1.3.txt
@@ -63,31 +61,27 @@ func (e *Encoder) Encode(data []byte) error {
 
 	currentLineLength := 0
 	for i := range data {
-		// read input character
 		char := data[i]
-
-		// calculate output character
 		char = char + 42
-		// escape output character if necessary
-		switch char {
-		case escape, null, lf, cr, tab, dot:
-			e.Writer.WriteByte(escape)
+
+		firstColumn := currentLineLength == 0
+		lastColumn := currentLineLength == e.Line-1
+
+		// TODO: remove tab and dot from from default escape characters and adjust test files
+		escapeChar := false
+		if char == null || char == lf || char == cr || char == equal || char == tab || char == dot {
+			escapeChar = true
+		} else if firstColumn && (char == tab || char == space || char == dot) {
+			escapeChar = true
+		} else if lastColumn && (char == tab || char == space) {
+			escapeChar = true
+		}
+
+		if escapeChar {
+			e.Writer.WriteByte(equal)
 			currentLineLength++
 			char = char + 64
 		}
-
-		//if currentLineLength == 0 && char == dot {
-		//	e.Writer.WriteByte(escape)
-		//	currentLineLength++
-		//	char = byte(math.Mod(float64(char + 64), 256))
-		//}
-		//if (currentLineLength == 0 || currentLineLength >= e.Line) && char == space {
-		//	e.Writer.WriteByte(escape)
-		//	currentLineLength++
-		//	char = byte(math.Mod(float64(char + 64), 256))
-		//}
-
-		// write output character to output stream
 		e.Writer.WriteByte(char)
 		currentLineLength++
 
@@ -100,7 +94,6 @@ func (e *Encoder) Encode(data []byte) error {
 	if currentLineLength > 0 {
 		e.Writer.Write([]byte("\r\n"))
 	}
-
 	return nil
 }
 

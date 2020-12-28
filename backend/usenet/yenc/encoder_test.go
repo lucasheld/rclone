@@ -30,12 +30,5 @@ func TestSinglepart(t *testing.T) {
 	outputExpected = bytes.ReplaceAll(outputExpected, []byte{' ', '\r', '\n'}, []byte{'\r', '\n'})
 	assert.NoError(t, err)
 
-	//for i := range outputExpected {
-	//	oe := outputExpected[i]
-	//	o := output[i]
-	//	assert.Equal(t, int(oe), int(o))
-	//}
-
-	//assert.Equal(t, outputExpected, output)
-	assert.Equal(t, string(outputExpected), string(output))
+	assert.Equal(t, outputExpected, output)
 }
