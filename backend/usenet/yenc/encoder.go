@@ -13,61 +13,18 @@ type Encoder struct {
 	Name   string
 }
 
-func NewEncoder(writer *bytes.Buffer, inputFileSize int) *Encoder {
-	return &Encoder{
-		Writer: writer,
-		Line:   128,
-		Size:   inputFileSize,
-	}
+func (e *Encoder) calcCrc(data []byte) string {
+	return fmt.Sprintf("%x", crc32.ChecksumIEEE(data))
 }
 
-func (e *Encoder) writeHeader(part *Part) error {
-	content := "=ybegin"
-	if part.IsMultipart() {
-		content = fmt.Sprintf("%s part=%d", content, part.Part)
-	}
-	content = fmt.Sprintf("%s line=%d size=%d name=%s\r\n", content, e.Line, e.Size, e.Name)
-	if part.IsMultipart() {
-		content = fmt.Sprintf("%s=ypart begin=%d end=%d\r\n", content, part.Begin, part.End)
-	}
-
-	_, err := e.Writer.WriteString(content)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (e *Encoder) writeTrailer(part *Part) error {
-	content := ""
-	if part.IsMultipart() {
-		content = fmt.Sprintf("=yend size=%d part=%d pcrc32=%s\r\n", part.Size(), part.Part, part.Crc)
-	} else {
-		content = fmt.Sprintf("=yend size=%d crc32=%s\r\n", e.Size, part.Crc)
-	}
-
-	_, err := e.Writer.WriteString(content)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (e *Encoder) Encode(part *Part, data []byte) error {
-	part.Crc = fmt.Sprintf("%x", crc32.ChecksumIEEE(data))
-
-	err := e.writeHeader(part)
-	if err != nil {
-		return err
-	}
-
+func (e *Encoder) writeBody(data []byte) error {
 	currentLineLength := 0
 	for i := range data {
 		char := data[i]
 		char = char + 42
 
 		firstColumn := currentLineLength == 0
-		lastColumn := currentLineLength == e.Line - 1
+		lastColumn := currentLineLength == e.Line-1
 
 		// TODO: remove tab and dot from from default escape characters and adjust test files
 		escapeChar := false
@@ -80,21 +37,121 @@ func (e *Encoder) Encode(part *Part, data []byte) error {
 		}
 
 		if escapeChar {
-			e.Writer.WriteByte(equal)
+			err := e.Writer.WriteByte(equal)
+			if err != nil {
+				return err
+			}
 			currentLineLength++
 			char = char + 64
 		}
-		e.Writer.WriteByte(char)
+		err := e.Writer.WriteByte(char)
+		if err != nil {
+			return err
+		}
 		currentLineLength++
 
 		if currentLineLength >= e.Line {
-			e.Writer.Write([]byte("\r\n"))
+			_, err := e.Writer.Write([]byte("\r\n"))
+			if err != nil {
+				return err
+			}
 			currentLineLength = 0
 		}
 	}
 
 	if currentLineLength > 0 {
-		e.Writer.Write([]byte("\r\n"))
+		_, err := e.Writer.Write([]byte("\r\n"))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+type SinglepartEncoder struct {
+	*Encoder
+	Crc string
+}
+
+func (e *SinglepartEncoder) writeHeader() error {
+	_, err := fmt.Fprintf(e.Writer,
+		"=ybegin line=%d size=%d name=%s\r\n",
+		e.Line, e.Size, e.Name)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *SinglepartEncoder) writeTrailer() error {
+	_, err := fmt.Fprintf(e.Writer,
+		"=yend size=%d crc32=%s\r\n",
+		e.Size, e.Crc)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *SinglepartEncoder) Encode(data []byte) error {
+	e.Size = len(data)
+	e.Crc = e.calcCrc(data)
+
+	err := e.writeHeader()
+	if err != nil {
+		return err
+	}
+
+	err = e.writeBody(data)
+	if err != nil {
+		return err
+	}
+
+	err = e.writeTrailer()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type MultipartEncoder struct {
+	*Encoder
+}
+
+func (e *MultipartEncoder) writeHeader(part *Part) error {
+	_, err := fmt.Fprintf(e.Writer,
+		"=ybegin part=%d line=%d size=%d name=%s\r\n"+
+			"=ypart begin=%d end=%d\r\n",
+		part.Part, e.Line, e.Size, e.Name,
+		part.Begin, part.End)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func (e *MultipartEncoder) writeTrailer(part *Part) error {
+	_, err := fmt.Fprintf(e.Writer,
+		"=yend size=%d part=%d pcrc32=%s\r\n",
+		part.Size(), part.Part, part.Crc)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *MultipartEncoder) Encode(part *Part, data []byte) error {
+	part.Crc = e.calcCrc(data)
+
+	err := e.writeHeader(part)
+	if err != nil {
+		return err
+	}
+
+	err = e.writeBody(data)
+	if err != nil {
+		return err
 	}
 
 	err = e.writeTrailer(part)
@@ -103,4 +160,23 @@ func (e *Encoder) Encode(part *Part, data []byte) error {
 	}
 
 	return nil
+}
+
+func NewSinglepartEncoder(writer *bytes.Buffer) *SinglepartEncoder {
+	return &SinglepartEncoder{
+		Encoder: &Encoder{
+			Writer: writer,
+			Line:   128,
+		},
+	}
+}
+
+func NewMultipartEncoder(writer *bytes.Buffer, inputFileSize int) *MultipartEncoder {
+	return &MultipartEncoder{
+		Encoder: &Encoder{
+			Writer: writer,
+			Line:   128,
+			Size:   inputFileSize,
+		},
+	}
 }

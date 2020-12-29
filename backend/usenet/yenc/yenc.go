@@ -24,6 +24,10 @@ func (p Part) Size() int {
 	return p.End - p.Begin + 1
 }
 
-func (p *Part) IsMultipart() bool {
-	return p.Part > 0
+func NewPart(part int, begin int, end int) *Part {
+	return &Part{
+		Part:  part,
+		Begin: begin,
+		End:   end,
+	}
 }

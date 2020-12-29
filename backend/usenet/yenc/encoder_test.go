@@ -12,19 +12,16 @@ import (
 func TestSinglepart(t *testing.T) {
 	input, err := ioutil.ReadFile("testdata/singlepart/testfile.txt")
 	assert.NoError(t, err)
-	size := len(input)
 
 	outputBuffer := new(bytes.Buffer)
-	encoder := NewEncoder(outputBuffer, size)
+	encoder := NewSinglepartEncoder(outputBuffer)
 	encoder.Name = "testfile.txt"
 
-
-	part := &Part{}
-	err = encoder.Encode(part, input)
+	err = encoder.Encode(input)
 	assert.NoError(t, err)
 
-	assert.Equal(t, encoder.Size, size)
-	assert.Equal(t, part.Crc, "ded29f4f")
+	assert.Equal(t, encoder.Size, len(input))
+	assert.Equal(t, encoder.Crc, "ded29f4f")
 
 	output, err := ioutil.ReadAll(outputBuffer)
 	assert.NoError(t, err)
@@ -46,7 +43,7 @@ func TestMultipart(t *testing.T) {
 	inputReader := bufio.NewReader(inputBuffer)
 
 	outputBuffer := new(bytes.Buffer)
-	encoder := NewEncoder(outputBuffer, size)
+	encoder := NewMultipartEncoder(outputBuffer, size)
 	encoder.Name = "joystick.jpg"
 
 	chunksize := 11250
@@ -61,12 +58,7 @@ func TestMultipart(t *testing.T) {
 		}
 		chunk := chunkBuffer[0:n]
 
-		part := &Part{
-			Part:  number,
-			Begin: begin,
-			End:   begin+n-1,
-		}
-
+		part := NewPart(number, begin, begin+n-1)
 		err = encoder.Encode(part, chunk)
 		assert.NoError(t, err)
 
