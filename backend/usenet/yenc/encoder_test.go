@@ -36,12 +36,15 @@ func TestMultipartEncoder(t *testing.T) {
 	input, err := ioutil.ReadFile("testdata/multipart/joystick.jpg")
 	assert.NoError(t, err)
 
+	size := len(input)
+	name := "joystick.jpg"
+
 	chunk := input[0:11250]
 
 	outputBuffer := new(bytes.Buffer)
 	encoder := NewEncoder(outputBuffer)
-	encoder.Size = len(input)
-	encoder.Name = "joystick.jpg"
+	encoder.Size = size
+	encoder.Name = name
 	// encoder.Crc = encoder.CalcCrc(input)
 	encoder.PPart = 1
 	// encoder.PTotal = 2
@@ -68,8 +71,8 @@ func TestMultipartEncoder(t *testing.T) {
 
 	outputBuffer = new(bytes.Buffer)
 	encoder = NewEncoder(outputBuffer)
-	encoder.Size = len(input)
-	encoder.Name = "joystick.jpg"
+	encoder.Size = size
+	encoder.Name = name
 	// encoder.Crc = encoder.CalcCrc(input)
 	encoder.PPart = 2
 	// encoder.PTotal = 2
