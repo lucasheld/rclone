@@ -7,13 +7,10 @@ import (
 )
 
 type Encoder struct {
-	Writer *bytes.Buffer
-	Line   int
-	Size   int
-	Name   string
+	Yenc
 }
 
-func (e *Encoder) calcCrc(data []byte) string {
+func (e *Encoder) CalcCrc(data []byte) string {
 	return fmt.Sprintf("%x", crc32.ChecksumIEEE(data))
 }
 
@@ -65,38 +62,54 @@ func (e *Encoder) writeBody(data []byte) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
-type SinglepartEncoder struct {
-	*Encoder
-	Crc string
-}
+func (e *Encoder) writeHeader() error {
+	var header string
+	if e.IsMultipart() {
+		// TODO: add total and adjust test files
+		header = fmt.Sprintf("=ybegin part=%d line=%d size=%d name=%s\r\n"+
+			"=ypart begin=%d end=%d\r\n",
+			e.PPart, e.Line, e.Size, e.Name,
+			e.PBegin, e.PEnd)
+	} else {
+		header = fmt.Sprintf("=ybegin line=%d size=%d name=%s\r\n",
+			e.Line, e.Size, e.Name)
+	}
 
-func (e *SinglepartEncoder) writeHeader() error {
-	_, err := fmt.Fprintf(e.Writer,
-		"=ybegin line=%d size=%d name=%s\r\n",
-		e.Line, e.Size, e.Name)
+	_, err := fmt.Fprintf(e.Writer, header)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *SinglepartEncoder) writeTrailer() error {
-	_, err := fmt.Fprintf(e.Writer,
-		"=yend size=%d crc32=%s\r\n",
-		e.Size, e.Crc)
+func (e *Encoder) writeTrailer() error {
+	var trailer string
+	if e.IsMultipart() {
+		// TODO: add crc32 of the entire encoded binary and adjust test files?
+		trailer = fmt.Sprintf("=yend size=%d part=%d pcrc32=%s\r\n",
+			e.PSize, e.PPart, e.PCrc)
+	} else {
+		trailer = fmt.Sprintf("=yend size=%d crc32=%s\r\n",
+			e.Size, e.Crc)
+	}
+
+	_, err := fmt.Fprintf(e.Writer, trailer)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *SinglepartEncoder) Encode(data []byte) error {
-	e.Size = len(data)
-	e.Crc = e.calcCrc(data)
+func (e *Encoder) Encode(data []byte) error {
+	crc := e.CalcCrc(data)
+	if e.IsMultipart() {
+		e.PCrc = crc
+	} else {
+		e.Crc = crc
+	}
 
 	err := e.writeHeader()
 	if err != nil {
@@ -116,70 +129,9 @@ func (e *SinglepartEncoder) Encode(data []byte) error {
 	return nil
 }
 
-type MultipartEncoder struct {
-	*Encoder
-}
-
-func (e *MultipartEncoder) writeHeader(part *Part) error {
-	// TODO: add total and adjust test files
-	_, err := fmt.Fprintf(e.Writer,
-		"=ybegin part=%d line=%d size=%d name=%s\r\n"+
-			"=ypart begin=%d end=%d\r\n",
-		part.Part, e.Line, e.Size, e.Name,
-		part.Begin, part.End)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-func (e *MultipartEncoder) writeTrailer(part *Part) error {
-	// TODO: add crc32 of the entire encoded binary and adjust test files?
-	_, err := fmt.Fprintf(e.Writer,
-		"=yend size=%d part=%d pcrc32=%s\r\n",
-		part.Size, part.Part, part.Crc)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (e *MultipartEncoder) Encode(part *Part, data []byte) error {
-	part.Size = part.End - part.Begin + 1
-	part.Crc = e.calcCrc(data)
-
-	err := e.writeHeader(part)
-	if err != nil {
-		return err
-	}
-
-	err = e.writeBody(data)
-	if err != nil {
-		return err
-	}
-
-	err = e.writeTrailer(part)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func NewSinglepartEncoder(writer *bytes.Buffer) *SinglepartEncoder {
-	return &SinglepartEncoder{
-		Encoder: &Encoder{
-			Writer: writer,
-			Line:   128,
-		},
-	}
-}
-
-func NewMultipartEncoder(writer *bytes.Buffer, inputFileSize int) *MultipartEncoder {
-	return &MultipartEncoder{
-		Encoder: &Encoder{
-			Writer: writer,
-			Line:   128,
-			Size:   inputFileSize,
-		},
-	}
+func NewEncoder(writer *bytes.Buffer) *Encoder {
+	return &Encoder{Yenc{
+		Writer: writer,
+		Line:   128,
+	}}
 }

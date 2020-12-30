@@ -1,9 +1,7 @@
 package yenc
 
 import (
-	"bufio"
 	"bytes"
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"testing"
@@ -14,7 +12,8 @@ func TestSinglepartEncoder(t *testing.T) {
 	assert.NoError(t, err)
 
 	outputBuffer := new(bytes.Buffer)
-	encoder := NewSinglepartEncoder(outputBuffer)
+	encoder := NewEncoder(outputBuffer)
+	encoder.Size = len(input)
 	encoder.Name = "testfile.txt"
 
 	err = encoder.Encode(input)
@@ -36,43 +35,60 @@ func TestSinglepartEncoder(t *testing.T) {
 func TestMultipartEncoder(t *testing.T) {
 	input, err := ioutil.ReadFile("testdata/multipart/joystick.jpg")
 	assert.NoError(t, err)
-	size := len(input)
 
-	inputBuffer := new(bytes.Buffer)
-	inputBuffer.Write(input)
-	inputReader := bufio.NewReader(inputBuffer)
+	chunk := input[0:11250]
 
 	outputBuffer := new(bytes.Buffer)
-	encoder := NewMultipartEncoder(outputBuffer, size)
+	encoder := NewEncoder(outputBuffer)
+	encoder.Size = len(input)
 	encoder.Name = "joystick.jpg"
+	// encoder.Crc = encoder.CalcCrc(input)
+	encoder.PPart = 1
+	// encoder.PTotal = 2
+	encoder.PBegin = 1
+	encoder.PEnd = 11250
+	encoder.PSize = len(chunk)
 
-	chunksize := 11250
-	chunkBuffer := make([]byte, chunksize)
+	err = encoder.Encode(chunk)
+	assert.NoError(t, err)
 
-	number := 1
-	begin := 1
-	for {
-		n, err := inputReader.Read(chunkBuffer)
-		if err != nil {
-			break
-		}
-		chunk := chunkBuffer[0:n]
+	assert.Equal(t, encoder.Line, 128)
+	assert.Equal(t, encoder.Crc, "")
+	assert.Equal(t, encoder.PTotal, 0)
+	assert.Equal(t, encoder.PCrc, "bfae5c0b")
 
-		part := NewPart(number, begin, begin+n-1)
-		err = encoder.Encode(part, chunk)
-		assert.NoError(t, err)
+	output, err := ioutil.ReadAll(outputBuffer)
+	assert.NoError(t, err)
+	outputExpected, err := ioutil.ReadFile("testdata/multipart/00000020.ntx")
+	outputExpected = bytes.ReplaceAll(outputExpected, []byte{' ', '\r', '\n'}, []byte{'\r', '\n'})
+	assert.NoError(t, err)
+	assert.Equal(t, outputExpected, output)
 
-		assert.Equal(t, encoder.Size, size)
+	chunk = input[11250:19338]
 
-		output, err := ioutil.ReadAll(outputBuffer)
-		assert.NoError(t, err)
-		filename := fmt.Sprintf("testdata/multipart/0000002%d.ntx", number-1)
-		outputExpected, err := ioutil.ReadFile(filename)
-		outputExpected = bytes.ReplaceAll(outputExpected, []byte{' ', '\r', '\n'}, []byte{'\r', '\n'})
-		assert.NoError(t, err)
-		assert.Equal(t, outputExpected, output)
+	outputBuffer = new(bytes.Buffer)
+	encoder = NewEncoder(outputBuffer)
+	encoder.Size = len(input)
+	encoder.Name = "joystick.jpg"
+	// encoder.Crc = encoder.CalcCrc(input)
+	encoder.PPart = 2
+	// encoder.PTotal = 2
+	encoder.PBegin = 11251
+	encoder.PEnd = 19338
+	encoder.PSize = len(chunk)
 
-		number++
-		begin = begin + n
-	}
+	err = encoder.Encode(chunk)
+	assert.NoError(t, err)
+
+	assert.Equal(t, encoder.Line, 128)
+	assert.Equal(t, encoder.Crc, "")
+	assert.Equal(t, encoder.PTotal, 0)
+	assert.Equal(t, encoder.PCrc, "aca76043")
+
+	output, err = ioutil.ReadAll(outputBuffer)
+	assert.NoError(t, err)
+	outputExpected, err = ioutil.ReadFile("testdata/multipart/00000021.ntx")
+	outputExpected = bytes.ReplaceAll(outputExpected, []byte{' ', '\r', '\n'}, []byte{'\r', '\n'})
+	assert.NoError(t, err)
+	assert.Equal(t, outputExpected, output)
 }

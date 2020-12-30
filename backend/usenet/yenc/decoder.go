@@ -6,23 +6,7 @@ import (
 )
 
 type Decoder struct {
-	Writer *bytes.Buffer
-	Line   int
-	Size   int
-	Name   string
-	Crc    string
-
-	// additional attributes for multi-part binaries
-	PPart  int
-	PTotal int
-	PBegin int
-	PEnd   int
-	PSize  int
-	PCrc   string
-}
-
-func (d Decoder) IsMultipart() bool {
-	return d.PPart > 0
+	Yenc
 }
 
 func (d *Decoder) parseParam(param []byte) (key string, value string) {
@@ -166,7 +150,7 @@ func (d *Decoder) Decode(data []byte) error {
 }
 
 func NewDecoder(writer *bytes.Buffer) *Decoder {
-	return &Decoder{
+	return &Decoder{Yenc{
 		Writer: writer,
-	}
+	}}
 }
