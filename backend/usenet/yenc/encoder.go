@@ -18,7 +18,7 @@ func (e *Encoder) writeBody(data []byte) error {
 	currentLineLength := 0
 	for i := range data {
 		char := data[i]
-		char = char + 42
+		char = char + offset1
 
 		firstColumn := currentLineLength == 0
 		lastColumn := currentLineLength == e.Line-1
@@ -39,7 +39,7 @@ func (e *Encoder) writeBody(data []byte) error {
 				return err
 			}
 			currentLineLength++
-			char = char + 64
+			char = char + offset2
 		}
 		err := e.Writer.WriteByte(char)
 		if err != nil {

@@ -133,12 +133,12 @@ func (d *Decoder) Decode(data []byte) error {
 		} else {
 			for i := 0; i < len(line); i++ {
 				char := line[i]
-				if char == '=' {
+				if char == equal {
 					i++
 					char = line[i]
-					char = char - 64
+					char = char - offset2
 				}
-				char = char - 42
+				char = char - offset1
 				err := d.Writer.WriteByte(char)
 				if err != nil {
 					return err

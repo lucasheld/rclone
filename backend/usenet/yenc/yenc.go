@@ -13,6 +13,9 @@ const (
 	space byte = 0x20
 	dot   byte = 0x2E
 	equal byte = 0x3D
+
+	offset1 byte = 42
+	offset2 byte = 64
 )
 
 type Yenc struct {
