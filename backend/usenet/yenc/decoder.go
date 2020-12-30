@@ -11,17 +11,18 @@ type Decoder struct {
 	Size   int
 	Name   string
 	Crc    string
-	Total  int
-	Parts  []*Part
+
+	// additional attributes for multi-part binaries
+	PPart  int
+	PTotal int
+	PBegin int
+	PEnd   int
+	PSize  int
+	PCrc   string
 }
 
-func (d *Decoder) Part() *Part {
-	lenParts := len(d.Parts)
-	if lenParts > 0 {
-		return d.Parts[len(d.Parts)-1]
-	} else {
-		return nil
-	}
+func (d Decoder) IsMultipart() bool {
+	return d.PPart > 0
 }
 
 func (d *Decoder) parseParam(param []byte) (key string, value string) {
@@ -38,12 +39,10 @@ func (d *Decoder) parseLineBegin(params [][]byte) error {
 		var err error
 		switch key {
 		case "part":
-			// add new part
-			d.Parts = append(d.Parts, &Part{})
-			d.Part().Part, err = strconv.Atoi(value)
+			d.PPart, err = strconv.Atoi(value)
 			break
 		case "total":
-			d.Total, err = strconv.Atoi(value)
+			d.PTotal, err = strconv.Atoi(value)
 			break
 		case "line":
 			d.Line, err = strconv.Atoi(value)
@@ -69,10 +68,10 @@ func (d *Decoder) parseLinePart(params [][]byte) error {
 		var err error
 		switch key {
 		case "begin":
-			d.Part().Begin, err = strconv.Atoi(value)
+			d.PBegin, err = strconv.Atoi(value)
 			break
 		case "end":
-			d.Part().End, err = strconv.Atoi(value)
+			d.PEnd, err = strconv.Atoi(value)
 			break
 		}
 		if err != nil {
@@ -89,18 +88,17 @@ func (d *Decoder) parseLineEnd(params [][]byte) error {
 		var err error
 		switch key {
 		case "size":
-			part := d.Part()
-			if part != nil {
-				part.Size, err = strconv.Atoi(value)
+			if d.IsMultipart() {
+				d.PSize, err = strconv.Atoi(value)
 			} else {
 				d.Size, err = strconv.Atoi(value)
 			}
 			break
 		case "part":
-			d.Part().Part, err = strconv.Atoi(value)
+			d.PPart, err = strconv.Atoi(value)
 			break
 		case "pcrc32":
-			d.Part().Crc = value
+			d.PCrc = value
 			break
 		case "crc32":
 			d.Crc = value
@@ -119,7 +117,6 @@ func (d *Decoder) Decode(data []byte) error {
 	for _, line := range lines {
 		line = bytes.TrimRight(line, "\r")
 		line = bytes.Trim(line, " ")
-
 		if line == nil {
 			continue
 		}
@@ -152,7 +149,6 @@ func (d *Decoder) Decode(data []byte) error {
 		} else {
 			for i := 0; i < len(line); i++ {
 				char := line[i]
-
 				if char == '=' {
 					i++
 					char = line[i]
