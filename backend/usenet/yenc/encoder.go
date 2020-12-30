@@ -121,6 +121,7 @@ type MultipartEncoder struct {
 }
 
 func (e *MultipartEncoder) writeHeader(part *Part) error {
+	// TODO: add total and adjust test files
 	_, err := fmt.Fprintf(e.Writer,
 		"=ybegin part=%d line=%d size=%d name=%s\r\n"+
 			"=ypart begin=%d end=%d\r\n",
@@ -132,9 +133,10 @@ func (e *MultipartEncoder) writeHeader(part *Part) error {
 	return nil
 }
 func (e *MultipartEncoder) writeTrailer(part *Part) error {
+	// TODO: add crc32 of the entire encoded binary and adjust test files?
 	_, err := fmt.Fprintf(e.Writer,
 		"=yend size=%d part=%d pcrc32=%s\r\n",
-		part.Size(), part.Part, part.Crc)
+		part.Size, part.Part, part.Crc)
 	if err != nil {
 		return err
 	}
@@ -142,6 +144,7 @@ func (e *MultipartEncoder) writeTrailer(part *Part) error {
 }
 
 func (e *MultipartEncoder) Encode(part *Part, data []byte) error {
+	part.Size = part.End - part.Begin + 1
 	part.Crc = e.calcCrc(data)
 
 	err := e.writeHeader(part)

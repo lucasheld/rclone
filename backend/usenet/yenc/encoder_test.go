@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestSinglepart(t *testing.T) {
+func TestSinglepartEncoder(t *testing.T) {
 	input, err := ioutil.ReadFile("testdata/singlepart/testfile.txt")
 	assert.NoError(t, err)
 
@@ -33,7 +33,7 @@ func TestSinglepart(t *testing.T) {
 	assert.Equal(t, outputExpected, output)
 }
 
-func TestMultipart(t *testing.T) {
+func TestMultipartEncoder(t *testing.T) {
 	input, err := ioutil.ReadFile("testdata/multipart/joystick.jpg")
 	assert.NoError(t, err)
 	size := len(input)

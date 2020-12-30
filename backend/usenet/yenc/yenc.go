@@ -18,10 +18,7 @@ type Part struct {
 	Begin int
 	End   int
 	Crc   string
-}
-
-func (p Part) Size() int {
-	return p.End - p.Begin + 1
+	Size  int
 }
 
 func NewPart(part int, begin int, end int) *Part {
